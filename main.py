@@ -3,16 +3,29 @@ import ollama
 
 
 def buscar_pr_e_diff(owner, repo):
-    """Busca a primeira PR aberta de um repositorio e retorna numero, titulo e diff."""
+    """Lista as PRs abertas, deixa o usuario escolher uma e retorna numero, titulo e diff."""
     url_prs = f"https://api.github.com/repos/{owner}/{repo}/pulls"
     prs = requests.get(url_prs).json()
 
     if len(prs) == 0:
         return None, None, None
 
-    primeira_pr = prs[0]
-    numero = primeira_pr["number"]
-    titulo = primeira_pr["title"]
+    print("PRs abertas neste repositorio:")
+    for pr in prs:
+        print(f"  #{pr['number']} - {pr['title']}")
+    print()
+
+    escolha = input("Digite o numero da PR que voce quer analisar: ")
+    numero = int(escolha)
+
+    titulo = None
+    for pr in prs:
+        if pr["number"] == numero:
+            titulo = pr["title"]
+
+    if titulo is None:
+        print(f"Nao encontrei a PR #{numero} na lista de PRs abertas.")
+        return None, None, None
 
     url_pr = f"https://api.github.com/repos/{owner}/{repo}/pulls/{numero}"
     headers = {"Accept": "application/vnd.github.diff"}
@@ -49,13 +62,14 @@ def main():
     REPO = "requests"
     MODELO = "qwen2.5-coder:3b"
 
-    print("Buscando PR no GitHub...")
+    print("Buscando PRs no GitHub...")
+    print()
     numero, titulo, diff = buscar_pr_e_diff(OWNER, REPO)
 
     if numero is None:
-        print("Nenhuma PR aberta nesse repositorio no momento.")
         return
 
+    print()
     print(f"Analisando PR #{numero} - {titulo}")
     print("Enviando pra IA... (pode demorar, esta rodando na CPU)")
     print()
