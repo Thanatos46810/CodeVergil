@@ -1,0 +1,12 @@
+# Ambiente virtual (NAO vai pro GitHub - e gigante e so funciona na sua maquina)
+venv/
+
+# Cache do Python
+__pycache__/
+*.pyc
+
+# Arquivos que nao fazem parte do projeto
+*.deb
+
+# Segredos (vamos usar mais pra frente)
+.env
