@@ -1,5 +1,7 @@
+import os
 import requests
 import ollama
+from dotenv import load_dotenv
 
 
 def buscar_pr_e_diff(owner, repo):
@@ -8,6 +10,7 @@ def buscar_pr_e_diff(owner, repo):
     prs = requests.get(url_prs).json()
 
     if len(prs) == 0:
+        print("Nenhuma PR aberta nesse repositorio no momento.")
         return None, None, None
 
     print("PRs abertas neste repositorio:")
@@ -60,6 +63,23 @@ DIFF:
     return resposta["message"]["content"]
 
 
+def postar_comentario(owner, repo, numero, texto, token):
+    """Posta um comentario numa PR do GitHub."""
+    url = f"https://api.github.com/repos/{owner}/{repo}/issues/{numero}/comments"
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github+json"
+    }
+    dados = {"body": texto}
+    resposta = requests.post(url, headers=headers, json=dados)
+
+    if resposta.status_code == 201:
+        print("Review postado como comentario na PR!")
+    else:
+        print(f"Erro ao postar comentario. Codigo: {resposta.status_code}")
+        print(resposta.text)
+
+
 def salvar_review(numero, titulo, review):
     """Salva o review num arquivo de texto."""
     nome_arquivo = "review.txt"
@@ -71,9 +91,17 @@ def salvar_review(numero, titulo, review):
 
 
 def main():
-    """Funcao principal: coordena a busca da PR e a analise pela IA."""
-    OWNER = "psf"
-    REPO = "requests"
+    """Funcao principal: coordena a busca da PR, a analise pela IA e o comentario."""
+    # Carrega o token do arquivo .env
+    load_dotenv()
+    token = os.getenv("GITHUB_TOKEN")
+
+    if not token:
+        print("ERRO: token nao encontrado. Confira o arquivo .env")
+        return
+
+    OWNER = "Thanatos46810"
+    REPO = "bot-teste"
     MODELO = "qwen2.5-coder:3b"
 
     print("Buscando PRs no GitHub...")
@@ -97,7 +125,13 @@ def main():
     print(review)
     print()
 
+    # Salva no arquivo
     salvar_review(numero, titulo, review)
+
+    # Posta o review como comentario na PR
+    print()
+    print("Postando review na PR...")
+    postar_comentario(OWNER, REPO, numero, review, token)
 
 
 if __name__ == "__main__":
