@@ -1,35 +1,31 @@
 import requests
 import ollama
 
-OWNER = "psf"
-REPO = "requests"
-MODELO = "qwen2.5-coder:3b"
 
-# 1. Buscar as PRs abertas
-url_prs = f"https://api.github.com/repos/{OWNER}/{REPO}/pulls"
-prs = requests.get(url_prs).json()
+def buscar_pr_e_diff(owner, repo):
+    """Busca a primeira PR aberta de um repositorio e retorna numero, titulo e diff."""
+    url_prs = f"https://api.github.com/repos/{owner}/{repo}/pulls"
+    prs = requests.get(url_prs).json()
 
-if len(prs) == 0:
-    print("Nenhuma PR aberta no momento.")
-    exit()
+    if len(prs) == 0:
+        return None, None, None
 
-# 2. Pegar a primeira PR
-primeira_pr = prs[0]
-numero = primeira_pr["number"]
-titulo = primeira_pr["title"]
-print(f"Analisando PR #{numero} - {titulo}")
-print()
+    primeira_pr = prs[0]
+    numero = primeira_pr["number"]
+    titulo = primeira_pr["title"]
 
-# 3. Buscar o diff dessa PR
-url_pr = f"https://api.github.com/repos/{OWNER}/{REPO}/pulls/{numero}"
-headers = {"Accept": "application/vnd.github.diff"}
-diff = requests.get(url_pr, headers=headers).text
+    url_pr = f"https://api.github.com/repos/{owner}/{repo}/pulls/{numero}"
+    headers = {"Accept": "application/vnd.github.diff"}
+    diff = requests.get(url_pr, headers=headers).text
 
-# Cortar o diff se for muito grande (a IA tem limite de tamanho)
-diff_cortado = diff[:3000]
+    return numero, titulo, diff
 
-# 4. Montar a instrucao (prompt) pra IA
-prompt = f"""Voce e um revisor de codigo experiente.
+
+def analisar_diff(diff, modelo):
+    """Envia o diff para a IA local e retorna o texto do review."""
+    diff_cortado = diff[:3000]
+
+    prompt = f"""Voce e um revisor de codigo experiente.
 Analise o diff abaixo de uma Pull Request e responda em portugues:
 1. O que essa mudanca faz (resumo curto).
 2. Ha algum problema, risco ou melhoria possivel?
@@ -40,15 +36,35 @@ DIFF:
 {diff_cortado}
 """
 
-# 5. Mandar pra IA local e receber a resposta
-print("Enviando pra IA... (pode demorar, esta rodando na CPU)")
-print()
+    resposta = ollama.chat(
+        model=modelo,
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return resposta["message"]["content"]
 
-resposta = ollama.chat(
-    model=MODELO,
-    messages=[{"role": "user", "content": prompt}]
-)
 
-# 6. Mostrar o review
-print("=== REVIEW DA IA ===")
-print(resposta["message"]["content"])
+def main():
+    """Funcao principal: coordena a busca da PR e a analise pela IA."""
+    OWNER = "psf"
+    REPO = "requests"
+    MODELO = "qwen2.5-coder:3b"
+
+    print("Buscando PR no GitHub...")
+    numero, titulo, diff = buscar_pr_e_diff(OWNER, REPO)
+
+    if numero is None:
+        print("Nenhuma PR aberta nesse repositorio no momento.")
+        return
+
+    print(f"Analisando PR #{numero} - {titulo}")
+    print("Enviando pra IA... (pode demorar, esta rodando na CPU)")
+    print()
+
+    review = analisar_diff(diff, MODELO)
+
+    print("=== REVIEW DA IA ===")
+    print(review)
+
+
+if __name__ == "__main__":
+    main()
