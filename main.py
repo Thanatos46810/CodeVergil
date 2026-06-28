@@ -16,7 +16,11 @@ def buscar_pr_e_diff(owner, repo):
     print()
 
     escolha = input("Digite o numero da PR que voce quer analisar: ")
-    numero = int(escolha)
+    try:
+        numero = int(escolha)
+    except ValueError:
+        print(f"'{escolha}' nao e um numero valido. Rode o programa de novo e digite um numero.")
+        return None, None, None
 
     titulo = None
     for pr in prs:
