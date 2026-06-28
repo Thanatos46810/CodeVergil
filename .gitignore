@@ -10,3 +10,6 @@ __pycache__/
 
 # Segredos (vamos usar mais pra frente)
 .env
+
+# Review gerado pelo programa (resultado, nao codigo)
+review.txt

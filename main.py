@@ -60,6 +60,16 @@ DIFF:
     return resposta["message"]["content"]
 
 
+def salvar_review(numero, titulo, review):
+    """Salva o review num arquivo de texto."""
+    nome_arquivo = "review.txt"
+    with open(nome_arquivo, "w", encoding="utf-8") as arquivo:
+        arquivo.write(f"Review da PR #{numero} - {titulo}\n")
+        arquivo.write("=" * 50 + "\n\n")
+        arquivo.write(review)
+    print(f"Review salvo no arquivo: {nome_arquivo}")
+
+
 def main():
     """Funcao principal: coordena a busca da PR e a analise pela IA."""
     OWNER = "psf"
@@ -80,8 +90,14 @@ def main():
 
     review = analisar_diff(diff, MODELO)
 
-    print("=== REVIEW DA IA ===")
+    print("=" * 50)
+    print(f"REVIEW DA PR #{numero} - {titulo}")
+    print("=" * 50)
+    print()
     print(review)
+    print()
+
+    salvar_review(numero, titulo, review)
 
 
 if __name__ == "__main__":
