@@ -21,7 +21,7 @@ Ao apontar para um repositório, o bot busca uma Pull Request aberta, extrai as 
 
 ```bash
 # 1. Clonar o repositório
-git clone https://github.com/SEU-USUARIO/pr-review-bot.git
+git clone https://github.com/Thanatos46810/pr-review-bot.git
 cd pr-review-bot
 
 # 2. Criar e ativar o ambiente virtual
