@@ -50,4 +50,4 @@ Este é um MVP funcional. Pontos em evolução:
 
 ---
 
-Projeto desenvolvido como estudo prático de integração de APIs e IA local.
+Projeto desenvolvido como estudo prático de integração de APIs e IA local ONLINE
