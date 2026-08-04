@@ -17,7 +17,7 @@ Ao apontar para um repositório, o bot busca uma Pull Request aberta, extrai as 
 3. Envia o diff para a IA local com um prompt de revisão
 4. Exibe o review gerado pela IA
 
-## Como rodar
+## Como rodar.....
 
 ```bash
 # 1. Clonar o repositório
