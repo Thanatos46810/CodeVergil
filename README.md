@@ -51,4 +51,4 @@ online 2.0 versionando para automação
 
 ---
 
-Projeto desenvolvido como estudo prático de integração de APIs e IA local.
+Projeto desenvolvido como estudo prático de integração de APIs e IA local......
