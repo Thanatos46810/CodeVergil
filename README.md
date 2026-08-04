@@ -4,11 +4,11 @@ Um revisor de código automático que usa **IA local** (rodando 100% offline, se
 
 Ao apontar para um repositório, o bot busca uma Pull Request aberta, extrai as mudanças de código (diff) e envia para um modelo de IA local, que devolve uma análise técnica em português: o que a mudança faz e se há riscos ou melhorias possíveis.
 
-##  Tecnologias
+##  Tecnologias.
 
-- **Python 3**
-- **GitHub REST API** — para ler Pull Requests e seus diffs
-- **Ollama** + **Qwen2.5-Coder** — modelo de IA rodando localmente, sem API paga
+- **Python 3**.
+- **GitHub REST API** — para ler Pull Requests e seus diffs.
+- **Ollama** + **Qwen2.5-Coder** — modelo de IA rodando localmente, sem API paga.
 
 ## Como funciona
 
