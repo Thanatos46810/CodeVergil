@@ -1,44 +1,30 @@
 import os
+import json
 import requests
 import ollama
 from dotenv import load_dotenv
+from flask import Flask, request, jsonify
+
+load_dotenv()
+
+app = Flask(__name__)
+
+MODELO = "qwen2.5-coder:3b"
 
 
-def buscar_pr_e_diff(owner, repo):
-    """Lista as PRs abertas, deixa o usuario escolher uma e retorna numero, titulo e diff."""
-    url_prs = f"https://api.github.com/repos/{owner}/{repo}/pulls"
-    prs = requests.get(url_prs).json()
-
-    if len(prs) == 0:
-        print("Nenhuma PR aberta nesse repositorio no momento.")
-        return None, None, None
-
-    print("PRs abertas neste repositorio:")
-    for pr in prs:
-        print(f"  #{pr['number']} - {pr['title']}")
-    print()
-
-    escolha = input("Digite o numero da PR que voce quer analisar: ")
-    try:
-        numero = int(escolha)
-    except ValueError:
-        print(f"'{escolha}' nao e um numero valido. Rode o programa de novo e digite um numero.")
-        return None, None, None
-
-    titulo = None
-    for pr in prs:
-        if pr["number"] == numero:
-            titulo = pr["title"]
-
-    if titulo is None:
-        print(f"Nao encontrei a PR #{numero} na lista de PRs abertas.")
-        return None, None, None
-
-    url_pr = f"https://api.github.com/repos/{owner}/{repo}/pulls/{numero}"
-    headers = {"Accept": "application/vnd.github.diff"}
-    diff = requests.get(url_pr, headers=headers).text
-
-    return numero, titulo, diff
+def get_pr_diff(owner, repo, pr_number):
+    """Busca o diff da PR usando a API do GitHub."""
+    url_pr = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    
+    headers = {
+        "Accept": "application/vnd.github.diff",
+        "Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}"
+    }
+    
+    response = requests.get(url_pr, headers=headers)
+    if response.status_code == 200:
+        return response.text
+    return None
 
 
 def analisar_diff(diff, modelo):
@@ -73,66 +59,79 @@ def postar_comentario(owner, repo, numero, texto, token):
     dados = {"body": texto}
     resposta = requests.post(url, headers=headers, json=dados)
 
-    if resposta.status_code == 201:
-        print("Review postado como comentario na PR!")
-    else:
-        print(f"Erro ao postar comentario. Codigo: {resposta.status_code}")
-        print(resposta.text)
+    return resposta.status_code == 201
 
 
-def salvar_review(numero, titulo, review):
-    """Salva o review num arquivo de texto."""
-    nome_arquivo = "review.txt"
-    with open(nome_arquivo, "w", encoding="utf-8") as arquivo:
-        arquivo.write(f"Review da PR #{numero} - {titulo}\n")
-        arquivo.write("=" * 50 + "\n\n")
-        arquivo.write(review)
-    print(f"Review salvo no arquivo: {nome_arquivo}")
+def enviar_telegram(mensagem):
+    """Envia a analise do review diretamente para o Telegram."""
+    token = "8890942277:AAE92Fcw7oaIBsP_97Zq6jQthyQRoNdHTro"
+    chat_id = "8072537497"
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    
+    payload = {
+        "chat_id": chat_id,
+        "text": mensagem,
+        "parse_mode": "Markdown"
+    }
+    
+    try:
+        response = requests.post(url, json=payload, timeout=10)
+        if response.status_code == 200:
+            print("[SUCESSO] Notificacao enviada para o Telegram!")
+        else:
+            print(f"[ERRO] Falha ao enviar para o Telegram: {response.text}")
+    except Exception as e:
+        print(f"[ERRO] Excecao ao enviar para o Telegram: {e}")
 
 
-def main():
-    """Funcao principal: coordena a busca da PR, a analise pela IA e o comentario."""
-    # Carrega o token do arquivo .env
-    load_dotenv()
-    token = os.getenv("GITHUB_TOKEN")
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    """Recebe o evento do GitHub via webhook e dispara a analise."""
+    data = request.get_json(silent=True)
+    
+    # Se não vier como JSON puro, tenta capturar caso venha em form-urlencoded do GitHub
+    if not data and request.form:
+        payload_str = request.form.get("payload")
+        if payload_str:
+            try:
+                data = json.loads(payload_str)
+            except json.JSONDecodeError:
+                data = None
 
-    if not token:
-        print("ERRO: token nao encontrado. Confira o arquivo .env")
-        return
+    if not data:
+        return jsonify({"error": "Invalid payload"}), 400
 
-    OWNER = "Thanatos46810"
-    REPO = "bot-teste"
-    MODELO = "qwen2.5-coder:3b"
+    action = data.get("action")
+    pull_request = data.get("pull_request")
+    repository = data.get("repository")
 
-    print("Buscando PRs no GitHub...")
-    print()
-    numero, titulo, diff = buscar_pr_e_diff(OWNER, REPO)
+    if pull_request and repository and action in ["opened", "synchronize"]:
+        numero = pull_request["number"]
+        titulo = pull_request["title"]
+        owner = repository["owner"]["login"]
+        repo = repository["name"]
+        
+        print(f"\n[WEBHOOK] PR #{numero} detectada em {owner}/{repo}: {titulo}")
+        print("Buscando diff...")
+        
+        token = os.getenv("GITHUB_TOKEN")
+        diff = get_pr_diff(owner, repo, numero)
+        
+        if diff:
+            print("Analisando diff com o Ollama...")
+            review = analisar_diff(diff, MODELO)
+            
+            print("Postando comentario no GitHub...")
+            postar_comentario(owner, repo, numero, review, token)
+            
+            print("Enviando notificacao para o Telegram...")
+            mensagem_telegram = f"🤖 *Review da PR #{numero} ({repo})*\n\n{review}"
+            enviar_telegram(mensagem_telegram)
+        else:
+            print("[ERRO] Nao foi possivel obter o diff.")
 
-    if numero is None:
-        return
-
-    print()
-    print(f"Analisando PR #{numero} - {titulo}")
-    print("Enviando pra IA... (pode demorar, esta rodando na CPU)")
-    print()
-
-    review = analisar_diff(diff, MODELO)
-
-    print("=" * 50)
-    print(f"REVIEW DA PR #{numero} - {titulo}")
-    print("=" * 50)
-    print()
-    print(review)
-    print()
-
-    # Salva no arquivo
-    salvar_review(numero, titulo, review)
-
-    # Posta o review como comentario na PR
-    print()
-    print("Postando review na PR...")
-    postar_comentario(OWNER, REPO, numero, review, token)
+    return jsonify({"status": "success"}), 200
 
 
 if __name__ == "__main__":
-    main()
+    app.run(port=5000, debug=True)
