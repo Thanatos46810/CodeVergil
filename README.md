@@ -47,7 +47,7 @@ Este é um MVP funcional. Pontos em evolução:
 - O diff é cortado em 3000 caracteres para caber no modelo
 - Por usar um modelo pequeno rodando na CPU, a análise é mais lenta e pode ter imprecisões em detalhes
 - **Em desenvolvimento:** comentários linha a linha e automação via webhook (bot reagindo sozinho quando uma PR é aberta)
-online 2.0 versionando para automação
+online 2.0 versionando para automação em webhook
 
 ---
 
